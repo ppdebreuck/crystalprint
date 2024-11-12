@@ -6,13 +6,13 @@ CrystalPrint is a Python package that converts CIF (Crystallographic Information
 
 ## Gallery
 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-    <img src="imgs/printed-1211.jpg" alt="printed structures" width="200" />
-    <img src="imgs/graphene.jpg" alt="graphene structure" width="200" />
-    <img src="imgs/BCC.jpg" alt="BCC structure" width="200" />
+    <img src="imgs/printed-1211.jpg" alt="printed structures" width="250" />
+    <img src="imgs/graphene.jpg" alt="graphene structure" width="250" />
+    <img src="imgs/BCC.jpg" alt="BCC structure" width="250" />
 </div>
 
 ## Project & Team
-This repository is part of a project led by *Prof. Miguel Marques* at Ruhr University Bochum, with contributions from Haichen Wang, Theo Cavignon, and Antoine Loew. The project focuses on showcasing a variety of structures, which can be explored in the `imgs/` directory.
+This repository is part of a project led by *Prof. Miguel Marques* at Ruhr University Bochum, with contributions from *Haichen Wang*, *Théo Cavignon*, *Antoine Loew* and *Pierre-Paul De Breuck*. The project focuses on showcasing a variety of structures, which can be explored in the [Gallery](#gallery) above or `imgs/` directory.
 
 
 ## Features
