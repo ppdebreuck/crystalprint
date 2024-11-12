@@ -4,6 +4,14 @@
 
 CrystalPrint is a Python package that converts CIF (Crystallographic Information File) structures into printable 3D objects. It generates a mesh that accurately represents atoms and bonds, ensuring a single manifold without holes or discontinuities. In contrast, software like VESTA often produces output files that may not guarantee this level of integrity.
 
+## Gallery
+<img src="imgs/printed-1211.jpg" alt="printed structures" width="200" />
+<img src="imgs/graphene.jpg" alt="printed structures" width="200" />
+<img src="imgs/bcc.jpg" alt="printed structures" width="400" />
+
+## Project & Team
+This repository is part of a project led by *Prof. Miguel Marques* at Ruhr University Bochum, with contributions from Haichen Wang, Theo Cavignon, and Antoine Loew. The project focuses on showcasing a variety of structures, which can be explored in the `imgs/` directory.
+
 
 ## Features
 
@@ -97,7 +105,7 @@ You can adjust the bond cutoff, atom radius, and cylinder diameter to match your
 
 Mesh generated from the conventional Fe CIF file:
 
-![Example 3D Object](imgs/Fe.png)
+<img src="imgs/Fe.png" alt="stl-example" width="200" />
 
 ## Contributing
 This is ongoing work, and any contribution is welcome ! So feel free to fork the repository and submit a pull request, even small ones !
@@ -113,3 +121,5 @@ CrystalPrint is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ## Author
 
 CrystalPrint is developed by Pierre-Paul De Breuck. You can reach me at [pierre-paul.debreuck@rub.de](mailto:pierre-paul.debreuck@rub.de).
+
+
