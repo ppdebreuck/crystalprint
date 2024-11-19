@@ -16,11 +16,11 @@ This repository is part of a project led by *Prof. Miguel Marques* at Ruhr Unive
 
 
 ## Features
+The tool converts an XYZ file into an STL file, generating a 3D model with the following features:
 
-- Convert CIF structures to STL file.
-- Includes atoms as spheres and bonds as cylinders.
-- Adjustable bond cutoff, atom radius, and cylinder diameter.
-- Stacking in 2D and 3D for printing multiple cells at once
+Spheres are placed at atomic coordinates to represent atoms.
+Cylinders are generated as bonds between atoms that are within the distance specified by the `--cutoff` parameter.
+A CIF file can also be provided, which will be automatically converted using the unit cell as representation.
 
 ## In progress
 This package is an early start, much to come:
@@ -66,19 +66,19 @@ These dependencies will be automatically installed when you install the package.
 
 ## Usage
 
-After installation, you can use CrystalPrint directly from the command line to generate 3D meshes from CIF files.
+After installation, you can use CrystalPrint directly from the command line to generate 3D meshes from XYZ or CIF files.
 
 ### Command Line Arguments
 
 ```bash
-usage: crystalprint [-h] [--bond_cutoff BOND_CUTOFF] [--atom_radius ATOM_RADIUS]
+usage: crystalprint [-h] [--cutoff BOND_CUTOFF] [--atom_radius ATOM_RADIUS]
                     [--cylinder_diam CYLINDER_DIAM] [--out_dir OUT_DIR]
-                    cif_path
+                    file_path
 ```
 
 #### Arguments:
 
-- `cif_path`: Path to the input CIF file.  
+- `file_path`: Path to the input XYZ or CIF file.  
 - `--bond_cutoff`: Bond cutoff distance (default: 2.9 A).
 - `--atom_radius`: Radius of atoms (default: 0.65 A).
 - `--cylinder_diam`: Diameter of the bond cylinder (default: 0.3 A).
@@ -91,9 +91,13 @@ To generate a 3D object from a CIF file:
 ```bash
 python -m crystalprint Fe.cif
 ```
+or from XYZ:
+```bash
+python -m crystalprint C60.xyz
+```
 or if you want to tune the parameters:
 ```bash
-python -m crystalprint your_structure.cif --bond_cutoff 2.8 --atom_radius 0.6 --cylinder_diam 0.4 --out_dir ./output
+python -m crystalprint your_structure.cif --cutoff 2.8 --atom_radius 0.6 --cylinder_diam 0.4 --out_dir ./output
 ```
 
 This will generate three STL files:

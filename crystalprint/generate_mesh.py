@@ -4,7 +4,10 @@ import os
 import numpy as np
 import trimesh
 from pymatgen.core import Structure
+from pymatgen.io.xyz import XYZ
 from trimesh.transformations import rotation_matrix
+
+from .utils import structure_to_unit
 
 CYLINDER_SMOOTHNESS = 32
 SPHERE_SMOOTHNESS = 3
@@ -16,11 +19,13 @@ def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Generate 3D mesh from CIF file with bonds and atoms."
     )
-    parser.add_argument("cif_path", type=str, help="Path to the input CIF file.")
     parser.add_argument(
-        "--bond_cutoff",
+        "file_path", type=str, help="Path to the input XYZ or CIF file."
+    )
+    parser.add_argument(
+        "--cutoff",
         type=float,
-        default=2.9,
+        default=4,
         help="Bond cutoff distance. Default is 2.9.",
     )
     parser.add_argument(
@@ -53,12 +58,12 @@ def parse_arguments():
 
 
 # Function to add a bond with atoms
-def add_bond(meshes, coords1, coords2, atom_radius, cylinder_diam):
+def add_bond(meshes, coords1, coords2, atom_radius, cylinder_diam, radius1, radius2):
     sphere1 = trimesh.primitives.Sphere(
-        radius=atom_radius, center=coords1, subdivisions=SPHERE_SMOOTHNESS
+        radius=radius1, center=coords1, subdivisions=SPHERE_SMOOTHNESS
     )
     sphere2 = trimesh.primitives.Sphere(
-        radius=atom_radius, center=coords2, subdivisions=SPHERE_SMOOTHNESS
+        radius=radius2, center=coords2, subdivisions=SPHERE_SMOOTHNESS
     )
 
     meshes.append(sphere1)
@@ -68,6 +73,8 @@ def add_bond(meshes, coords1, coords2, atom_radius, cylinder_diam):
     direction = coords1 - coords2
     height = np.linalg.norm(direction)
     direction = direction / height
+
+    cylinder_diam = min(radius1, radius2) / 3
 
     bond_cylinder = trimesh.primitives.Cylinder(
         radius=cylinder_diam, height=height, sections=CYLINDER_SMOOTHNESS
@@ -108,12 +115,16 @@ def in_unit_cell(frac_coord, supercell=2):
 def main():
     args = parse_arguments()
 
-    # Load CIF file and create structure
-    cif_path = args.cif_path
-    structure = Structure.from_file(cif_path)
-    structure = structure.make_supercell(2)
+    file_path = args.file_path
 
-    BOND_CUTOFF = args.bond_cutoff
+    if args.file_path.endswith(".cif"):
+        unit = structure_to_unit(Structure.from_file(file_path))
+    elif args.file_path.endswith(".xyz"):
+        unit = XYZ.from_file(file_path).molecule
+    else:
+        raise ValueError("Unsupported file extension. Only .cif and .xyz are allowed.")
+
+    BOND_CUTOFF = args.cutoff
     ATOM_RADIUS = args.atom_radius
     CYLINDER_DIAM = args.cylinder_diam
 
@@ -121,63 +132,37 @@ def main():
     meshes = []
     unique_bonds = set()
 
-    for i, site1 in enumerate(structure):
-        neighbors = structure.get_neighbors(site1, BOND_CUTOFF)
+    for i, site1 in enumerate(unit):
+        neighbors = unit.get_neighbors(site1, BOND_CUTOFF)
         coords1 = site1.coords
+        radius1 = site1.species.elements[0].atomic_radius_calculated * (3 / 4)
         for neighbor in neighbors:
+            print(neighbor.species.elements)
             coords2 = neighbor.coords
-            if in_unit_cell(neighbor.frac_coords) and in_unit_cell(site1.frac_coords):
-                bond_id = tuple((coords1 + coords2) / 2)
-                if bond_id not in unique_bonds:
-                    unique_bonds.add(bond_id)
-                    add_bond(meshes, coords1, coords2, ATOM_RADIUS, CYLINDER_DIAM)
+            radius2 = neighbor.species.elements[0].atomic_radius_calculated * (3 / 4)
+            bond_id = tuple((coords1 + coords2) / 2)
+            if bond_id not in unique_bonds:
+                unique_bonds.add(bond_id)
+                add_bond(
+                    meshes,
+                    coords1,
+                    coords2,
+                    ATOM_RADIUS,
+                    CYLINDER_DIAM,
+                    radius1,
+                    radius2,
+                )
 
     # Combine meshes and apply transformations
     final_mesh = trimesh.util.concatenate(meshes)
     final_mesh.fill_holes()
     final_mesh.apply_scale(10 * SCALE_FACTOR)
 
-    REPEATS = 2  # Number of repetitions for translation (can be adjusted)
-    translated_meshes = []
-    for i in range(REPEATS):
-        for j in range(REPEATS):
-            translated_mesh = final_mesh.copy()
-            translation = np.array(
-                [
-                    i * structure.lattice.a * 10 * SCALE_FACTOR,
-                    j * structure.lattice.b * 10 * SCALE_FACTOR,
-                    0,
-                ]
-            )
-            translated_mesh.apply_translation(translation)
-            translated_meshes.append(translated_mesh)
-
-    final_repeated_mesh = trimesh.util.concatenate(translated_meshes)
-
-    # 3 mesh
-    extended_translated_meshes = []
-    for i in range(REPEATS):
-        translated_mesh = final_repeated_mesh.copy()
-        translation = np.array(
-            [
-                0,
-                0,
-                i * (structure.lattice.c / 2 + (2 * ATOM_RADIUS)) * 10 * SCALE_FACTOR
-                + Z_EPSILON,
-            ]
-        )
-        translated_mesh.apply_translation(translation)
-        extended_translated_meshes.append(translated_mesh)
-    # Combine all translated meshes
-    final_extended_repeated_mesh = trimesh.util.concatenate(extended_translated_meshes)
-
     # saving to file
     out_path = os.path.join(
-        args.out_dir, os.path.splitext(os.path.basename(cif_path))[0]
+        args.out_dir, os.path.splitext(os.path.basename(file_path))[0]
     )
     final_mesh.export(out_path + ".stl")
-    final_repeated_mesh.export(out_path + "_repeated_2d.stl")
-    final_extended_repeated_mesh.export(out_path + "_repeated_3d.stl")
 
     print(
         f"STL file with bonds and atoms has been created: {out_path}.stl and {out_path}_repeated.stl"
