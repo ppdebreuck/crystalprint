@@ -47,6 +47,13 @@ def parse_arguments():
         help="Directory for the output files.",
     )
 
+    parser.add_argument(
+        "--color",
+        action="store_true",  # This makes it a flag
+        default=False,  # Default value if the flag is not provided
+        help="Enable color output",  # Help message for the flag
+    )
+
     args = parser.parse_args()
     out_dir = os.path.abspath(args.out_dir)
     if not os.path.exists(out_dir):
@@ -57,8 +64,31 @@ def parse_arguments():
     return args
 
 
+# Predefined colors for each rank
+color_map = {}
+
+
+def get_color(rank):
+    """Returns a consistent color for a given rank. Generates a new color if not already assigned."""
+    if rank not in color_map:
+        color_map[rank] = np.random.randint(0, 255, (1, 4), dtype=np.uint8)[0]  # RGBA
+        color_map[rank][3] = 255  # Ensure full opacity
+    return color_map[rank]
+
+
 # Function to add a bond with atoms
-def add_bond(meshes, coords1, coords2, atom_radius, cylinder_diam, radius1, radius2):
+def add_bond(
+    meshes,
+    coords1,
+    coords2,
+    atom_radius,
+    cylinder_diam,
+    radius1,
+    radius2,
+    rank1="",
+    rank2="",
+    color=False,
+):
     sphere1 = trimesh.primitives.Sphere(
         radius=radius1, center=coords1, subdivisions=SPHERE_SMOOTHNESS
     )
@@ -66,18 +96,27 @@ def add_bond(meshes, coords1, coords2, atom_radius, cylinder_diam, radius1, radi
         radius=radius2, center=coords2, subdivisions=SPHERE_SMOOTHNESS
     )
 
-    meshes.append(sphere1)
-    meshes.append(sphere2)
-
-    midpoint = (coords1 + coords2) / 2
-    direction = coords1 - coords2
+    direction = coords2 - coords1
     height = np.linalg.norm(direction)
     direction = direction / height
 
+    midpoint = (
+        (coords2 - direction * radius2) - (coords1 + direction * radius1)
+    ) * 0.5 + (coords1 + direction * radius1)
+
+    height1 = np.linalg.norm(midpoint - coords1)
+    height2 = np.linalg.norm(midpoint - coords2)
+
+    shift1 = (midpoint + coords1) / 2
+    shift2 = (midpoint + coords2) / 2
+
     cylinder_diam = min(radius1, radius2) / 3
 
-    bond_cylinder = trimesh.primitives.Cylinder(
-        radius=cylinder_diam, height=height, sections=CYLINDER_SMOOTHNESS
+    bond_cylinder1 = trimesh.primitives.Cylinder(
+        radius=cylinder_diam, height=height1, sections=CYLINDER_SMOOTHNESS
+    )
+    bond_cylinder2 = trimesh.primitives.Cylinder(
+        radius=cylinder_diam, height=height2, sections=CYLINDER_SMOOTHNESS
     )
 
     initial_direction = np.array([0, 0, 1])
@@ -100,15 +139,28 @@ def add_bond(meshes, coords1, coords2, atom_radius, cylinder_diam, radius1, radi
         print(axis, angle)
         axis = axis / np.linalg.norm(axis)
         rotation_mat = rotation_matrix(angle, axis)
-        bond_cylinder.apply_transform(rotation_mat)
+        bond_cylinder1.apply_transform(rotation_mat)
+        bond_cylinder2.apply_transform(rotation_mat)
 
-    bond_cylinder.apply_translation(midpoint)
-    meshes.append(bond_cylinder)
+    bond_cylinder1.apply_translation(shift1)
+    bond_cylinder2.apply_translation(shift2)
 
+    if color:
+        color1 = get_color(rank1)
+        color2 = get_color(rank2)
+        sphere1.visual.face_colors = np.tile(color1, (len(sphere1.faces), 1))
+        sphere2.visual.face_colors = np.tile(color2, (len(sphere2.faces), 1))
+        bond_cylinder1.visual.face_colors = np.tile(
+            color1, (len(bond_cylinder1.faces), 1)
+        )
+        bond_cylinder2.visual.face_colors = np.tile(
+            color2, (len(bond_cylinder1.faces), 1)
+        )
 
-# Function to check if the atom is within the unit cell
-def in_unit_cell(frac_coord, supercell=2):
-    return min(frac_coord) >= 0 and max(frac_coord) <= (1 / supercell)
+    meshes.append((rank1, sphere1))
+    meshes.append((rank2, sphere2))
+    meshes.append((rank1, bond_cylinder1))
+    meshes.append((rank2, bond_cylinder2))
 
 
 # Main script execution
@@ -137,7 +189,6 @@ def main():
         coords1 = site1.coords
         radius1 = site1.species.elements[0].atomic_radius_calculated * (3 / 4)
         for neighbor in neighbors:
-            print(neighbor.species.elements)
             coords2 = neighbor.coords
             radius2 = neighbor.species.elements[0].atomic_radius_calculated * (3 / 4)
             bond_id = tuple((coords1 + coords2) / 2)
@@ -151,9 +202,14 @@ def main():
                     CYLINDER_DIAM,
                     radius1,
                     radius2,
+                    rank1=str(site1.species.elements[0]),
+                    rank2=str(neighbor.species.elements[0]),
+                    color=args.color,
                 )
 
     # Combine meshes and apply transformations
+    meshes = sorted(meshes, key=lambda x: x[0])
+    meshes = [m[1] for m in meshes]
     final_mesh = trimesh.util.concatenate(meshes)
     final_mesh.fill_holes()
     final_mesh.apply_scale(10 * SCALE_FACTOR)
@@ -163,10 +219,10 @@ def main():
         args.out_dir, os.path.splitext(os.path.basename(file_path))[0]
     )
     final_mesh.export(out_path + ".stl")
+    if args.color:
+        final_mesh.export(out_path + ".obj")
 
-    print(
-        f"STL file with bonds and atoms has been created: {out_path}.stl and {out_path}_repeated.stl"
-    )
+    print("Done")
     final_mesh.show()
 
 
