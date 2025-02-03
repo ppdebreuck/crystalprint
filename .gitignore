@@ -2,4 +2,6 @@
 .DS_Store
 *.stl
 *.pyc
-
+*.cif
+*.obj
+*.xyz
