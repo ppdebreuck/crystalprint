@@ -83,6 +83,7 @@ usage: crystalprint [-h] [--cutoff BOND_CUTOFF] [--atom_radius ATOM_RADIUS]
 - `--atom_radius`: Radius of atoms (default: 0.65 A).
 - `--cylinder_diam`: Diameter of the bond cylinder (default: 0.3 A).
 - `--out_dir`: Directory to save the output STL files (default: current directory).
+- `--color`: Flag to enable colored output.
 
 ### Example
 
@@ -106,6 +107,13 @@ This will generate three STL files:
 - `your_structure_repeated_3d.stl`: 3D repeated mesh.
 
 You can adjust the bond cutoff, atom radius, and cylinder diameter to match your needs.
+
+### Color
+
+Colored models can be obtained using the `--color` flag. When enabled, a `.obj` file will be created. This feature is still in the testing phase and may produce unexpected results.  
+
+
+<img src="imgs/h2o_color.png" alt="stl-example" width="200" />
 
 ## Example Output
 
