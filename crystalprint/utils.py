@@ -3,7 +3,9 @@ from pymatgen.core import Molecule
 
 # Function to check if the atom is within the unit cell
 def in_unit_cell(frac_coord, supercell=2):
-    return min(frac_coord) >= 0 and max(frac_coord) <= (1 / supercell)
+    return min(frac_coord) >= 0 and max(frac_coord) <= (
+        (1 / supercell) + (0.01 / supercell)
+    )
 
 
 def structure_to_unit(structure):
