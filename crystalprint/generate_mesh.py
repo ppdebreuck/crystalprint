@@ -3,6 +3,8 @@ import os
 
 import numpy as np
 import trimesh
+import yaml
+from pymatgen.analysis.molecule_structure_comparator import CovalentRadius
 from pymatgen.core import Structure
 from pymatgen.io.xyz import XYZ
 from trimesh.transformations import rotation_matrix
@@ -64,16 +66,9 @@ def parse_arguments():
     return args
 
 
-# Predefined colors for each rank
-color_map = {}
-
-
-def get_color(rank):
-    """Returns a consistent color for a given rank. Generates a new color if not already assigned."""
-    if rank not in color_map:
-        color_map[rank] = np.random.randint(0, 255, (1, 4), dtype=np.uint8)[0]  # RGBA
-        color_map[rank][3] = 255  # Ensure full opacity
-    return color_map[rank]
+with open("ElementColorSchemes.yaml") as fp:
+    color_map = yaml.safe_load(fp)["Jmol"]
+print(color_map)
 
 
 # Function to add a bond with atoms
@@ -146,15 +141,15 @@ def add_bond(
     bond_cylinder2.apply_translation(shift2)
 
     if color:
-        color1 = get_color(rank1)
-        color2 = get_color(rank2)
-        sphere1.visual.face_colors = np.tile(color1, (len(sphere1.faces), 1))
-        sphere2.visual.face_colors = np.tile(color2, (len(sphere2.faces), 1))
-        bond_cylinder1.visual.face_colors = np.tile(
-            color1, (len(bond_cylinder1.faces), 1)
+        color1 = color_map[rank1]
+        color2 = color_map[rank2]
+        sphere1.visual.vertex_colors = np.tile(color1, (len(sphere1.vertices), 1))
+        sphere2.visual.vertex_colors = np.tile(color2, (len(sphere2.vertices), 1))
+        bond_cylinder1.visual.vertex_colors = np.tile(
+            color1, (len(bond_cylinder1.vertices), 1)
         )
-        bond_cylinder2.visual.face_colors = np.tile(
-            color2, (len(bond_cylinder1.faces), 1)
+        bond_cylinder2.visual.vertex_colors = np.tile(
+            color2, (len(bond_cylinder1.vertices), 1)
         )
 
     meshes.append((rank1, sphere1))
@@ -187,10 +182,15 @@ def main():
     for i, site1 in enumerate(unit):
         neighbors = unit.get_neighbors(site1, BOND_CUTOFF)
         coords1 = site1.coords
-        radius1 = site1.species.elements[0].atomic_radius_calculated * (3 / 4)
+        print(type(site1.species.elements[0]))
+        # radius1 = site1.species.elements[0].atomic_radius_calculated * (3 / 4)
+        radius1 = CovalentRadius.radius[site1.species.elements[0].symbol] * (4 / 5)
         for neighbor in neighbors:
             coords2 = neighbor.coords
-            radius2 = neighbor.species.elements[0].atomic_radius_calculated * (3 / 4)
+            # radius2 = neighbor.species.elements[0].atomic_radius_calculated * (3 / 4)
+            radius2 = CovalentRadius.radius[neighbor.species.elements[0].symbol] * (
+                4 / 5
+            )
             bond_id = tuple((coords1 + coords2) / 2)
             if bond_id not in unique_bonds:
                 unique_bonds.add(bond_id)
@@ -202,8 +202,8 @@ def main():
                     CYLINDER_DIAM,
                     radius1,
                     radius2,
-                    rank1=str(site1.species.elements[0]),
-                    rank2=str(neighbor.species.elements[0]),
+                    rank1=str(site1.species.elements[0].symbol),
+                    rank2=str(neighbor.species.elements[0].symbol),
                     color=args.color,
                 )
 
@@ -221,6 +221,7 @@ def main():
     final_mesh.export(out_path + ".stl")
     if args.color:
         final_mesh.export(out_path + ".obj")
+        # final_mesh.export(out_path + ".3mf")
 
     print("Done")
     final_mesh.show()
