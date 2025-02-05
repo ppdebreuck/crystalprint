@@ -80,7 +80,7 @@ usage: crystalprint [-h] [--cutoff BOND_CUTOFF] [--atom_radius ATOM_RADIUS]
 
 - `file_path`: Path to the input XYZ or CIF file.  
 - `--bond_cutoff`: Bond cutoff distance (default: 2.9 A).
-- `--atom_radius`: Radius of atoms (default: 0.65 A).
+- `--atom_radius`: Type of atomic radius to use. Choices: `Ionic`, `Covalent`, `Van-der-Waals`, `Crystal`. Default is `Covalent`.
 - `--cylinder_diam`: Diameter of the bond cylinder (default: 0.3 A).
 - `--out_dir`: Directory to save the output STL files (default: current directory).
 - `--color`: Flag to enable colored output.
@@ -98,7 +98,7 @@ python -m crystalprint C60.xyz
 ```
 or if you want to tune the parameters:
 ```bash
-python -m crystalprint your_structure.cif --cutoff 2.8 --atom_radius 0.6 --cylinder_diam 0.4 --out_dir ./output
+python -m crystalprint your_structure.cif --cutoff 2.8 --atom_radius Covalent --cylinder_diam 0.4 --out_dir ./output
 ```
 
 This will generate three STL files:
