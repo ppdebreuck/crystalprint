@@ -1,19 +1,20 @@
 import argparse
+import importlib.resources as pkg_resources
 import os
 
 import numpy as np
 import trimesh
 import yaml
-from pymatgen.analysis.molecule_structure_comparator import CovalentRadius
 from pymatgen.core import Structure
 from pymatgen.io.xyz import XYZ
 from trimesh.transformations import rotation_matrix
 
-from .utils import structure_to_unit
+from crystalprint.utils import structure_to_unit
 
 CYLINDER_SMOOTHNESS = 32
 SPHERE_SMOOTHNESS = 3
 Z_EPSILON = 0
+VALID_RADIUS_TYPES = ["Ionic", "Covalent", "Van-der-Waals", "Crystal"]
 
 
 # Parse command-line arguments
@@ -32,14 +33,15 @@ def parse_arguments():
     )
     parser.add_argument(
         "--atom_radius",
-        type=float,
-        default=0.65,
-        help="Radius of atoms. Default is 0.65.",
+        type=str,
+        choices=VALID_RADIUS_TYPES,
+        default="Covalent",
+        help=f"Type of atomic radius to use. Choices: {', '.join(VALID_RADIUS_TYPES)}. Default is 'Covalent'.",
     )
     parser.add_argument(
         "--cylinder_diam",
         type=float,
-        default=0.3,
+        default=None,
         help="Diameter of the bond cylinder. Default is 0.3.",
     )
     parser.add_argument(
@@ -66,9 +68,13 @@ def parse_arguments():
     return args
 
 
-with open("ElementColorSchemes.yaml") as fp:
-    color_map = yaml.safe_load(fp)["Jmol"]
-print(color_map)
+def load_yaml_file(filename):
+    with pkg_resources.open_text("crystalprint.data", filename) as fp:
+        return yaml.safe_load(fp)
+
+
+color_map = load_yaml_file("colors.yaml")["Jmol"]
+radii_map = load_yaml_file("radii.yaml")
 
 
 # Function to add a bond with atoms
@@ -105,7 +111,8 @@ def add_bond(
     shift1 = (midpoint + coords1) / 2
     shift2 = (midpoint + coords2) / 2
 
-    cylinder_diam = min(radius1, radius2) / 3
+    if cylinder_diam is None:
+        cylinder_diam = max(min(radius1, radius2) / 3, 0.35)
 
     bond_cylinder1 = trimesh.primitives.Cylinder(
         radius=cylinder_diam, height=height1, sections=CYLINDER_SMOOTHNESS
@@ -175,6 +182,13 @@ def main():
     ATOM_RADIUS = args.atom_radius
     CYLINDER_DIAM = args.cylinder_diam
 
+    if args.atom_radius not in VALID_RADIUS_TYPES:
+        raise ValueError("Warning: '{args.atom_radius}' is not a valid radius type.")
+    else:
+        ATOM_RADIUS = args.atom_radius
+
+    print(f"Using atomic radius type: {ATOM_RADIUS}")
+
     SCALE_FACTOR = 1
     meshes = []
     unique_bonds = set()
@@ -184,11 +198,11 @@ def main():
         coords1 = site1.coords
         print(type(site1.species.elements[0]))
         # radius1 = site1.species.elements[0].atomic_radius_calculated * (3 / 4)
-        radius1 = CovalentRadius.radius[site1.species.elements[0].symbol] * (4 / 5)
+        radius1 = radii_map[ATOM_RADIUS][site1.species.elements[0].symbol] * (4 / 5)
         for neighbor in neighbors:
             coords2 = neighbor.coords
             # radius2 = neighbor.species.elements[0].atomic_radius_calculated * (3 / 4)
-            radius2 = CovalentRadius.radius[neighbor.species.elements[0].symbol] * (
+            radius2 = radii_map[ATOM_RADIUS][neighbor.species.elements[0].symbol] * (
                 4 / 5
             )
             bond_id = tuple((coords1 + coords2) / 2)
